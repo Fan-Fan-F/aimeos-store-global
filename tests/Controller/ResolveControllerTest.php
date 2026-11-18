@@ -32,6 +32,20 @@ class ResolveControllerTest extends AimeosTestAbstract
 	}
 
 
+	public function testCmsRegistration()
+	{
+		$controller = new \Aimeos\Shop\Controller\ResolveController();
+		$ref = new \ReflectionClass( $controller );
+		$prop = $ref->getProperty( 'fcn' );
+		$prop->setAccessible( true );
+		$fcns = $prop->getValue();
+
+		$this->assertArrayHasKey( 'product', $fcns );
+		$this->assertArrayHasKey( 'catalog', $fcns );
+		$this->assertArrayHasKey( 'cms', $fcns );
+	}
+
+
 	protected function getEnvironmentSetUp( $app )
 	{
 		parent::getEnvironmentSetUp( $app );

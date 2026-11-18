@@ -65,13 +65,23 @@ class Aimeos
 	 */
 	public function getVersion() : string
 	{
+		if( class_exists( '\Composer\InstalledVersions' ) && \Composer\InstalledVersions::isInstalled( 'aimeos/aimeos-laravel' ) )
+		{
+			$version = \Composer\InstalledVersions::getPrettyVersion( 'aimeos/aimeos-laravel' )
+				?? \Composer\InstalledVersions::getVersion( 'aimeos/aimeos-laravel' );
+
+			if( $version !== null ) {
+				return $version;
+			}
+		}
+
 		if( ( $content = @file_get_contents( base_path( 'composer.lock' ) ) ) !== false
 			&& ( $content = json_decode( $content, true ) ) !== null && isset( $content['packages'] )
 		) {
 			foreach( (array) $content['packages'] as $item )
 			{
-				if( $item['name'] === 'aimeos/aimeos-laravel' ) {
-					return $item['version'];
+				if( ( $item['name'] ?? '' ) === 'aimeos/aimeos-laravel' ) {
+					return $item['version'] ?? '';
 				}
 			}
 		}

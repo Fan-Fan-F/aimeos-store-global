@@ -41,12 +41,16 @@ class ResolveController extends Controller
 	 */
 	public function __construct()
 	{
-		self::$fcn['product'] = function( \Aimeos\MShop\ContextIface $context, string $path ) {
+		self::$fcn['product'] ??= function( \Aimeos\MShop\ContextIface $context, string $path ) {
 			return $this->product( $context, $path );
 		};
 
-		self::$fcn['catalog'] = function( \Aimeos\MShop\ContextIface $context, string $path ) {
+		self::$fcn['catalog'] ??= function( \Aimeos\MShop\ContextIface $context, string $path ) {
 			return $this->catalog( $context, $path );
+		};
+
+		self::$fcn['cms'] ??= function( \Aimeos\MShop\ContextIface $context, string $path ) {
+			return $this->cms( $context, $path );
 		};
 	}
 
@@ -69,8 +73,16 @@ class ResolveController extends Controller
 		{
 			try {
 				return call_user_func_array( $fcn->bindTo( $this, static::class ), [$context, $path] );
-			} catch( \Exception $e ) {
-				if( $e->getCode() !== 404 ) throw $e;
+			} catch( \Throwable $e ) {
+				$isNotFound = ( $e->getCode() === 404 )
+					|| ( method_exists( $e, 'getStatusCode' ) && $e->getStatusCode() === 404 )
+					|| ( $e instanceof \Aimeos\Controller\Frontend\Exception )
+					|| ( $e instanceof \Aimeos\MShop\Exception )
+					|| stripos( $e->getMessage(), 'not found' ) !== false;
+
+				if( !$isNotFound ) {
+					throw $e;
+				}
 			}
 		}
 

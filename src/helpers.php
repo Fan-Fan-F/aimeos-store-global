@@ -18,13 +18,20 @@ if( !function_exists( 'airoute' ) )
 	 */
 	function airoute( $name, $parameters = [], $absolute = true )
 	{
+		$isMultiShop = config( 'shop.multishop' ) ?? config( 'app.shop_multishop', false );
+		$site = $isMultiShop ? config( 'shop.mshop.locale.site', 'default' ) : null;
+
 		if( $current = Route::current() )
 		{
-			$site = config( 'app.shop_multishop' ) ? config( 'shop.mshop.locale.site', 'default' ) : null;
-
 			$parameters['site'] ??= $current->parameter( 'site', Request::get( 'site', $site ) );
 			$parameters['locale'] ??= $current->parameter( 'locale', Request::get( 'locale' ) );
 			$parameters['currency'] ??= $current->parameter( 'currency', Request::get( 'currency' ) );
+		}
+		else
+		{
+			$parameters['site'] ??= Request::get( 'site', $site );
+			$parameters['locale'] ??= Request::get( 'locale', app()->getLocale() );
+			$parameters['currency'] ??= Request::get( 'currency', (string) config( 'shop.mshop.locale.currency', '' ) );
 		}
 
 		return app( 'url' )->route( $name, array_filter( $parameters ), $absolute );
@@ -62,8 +69,13 @@ if( !function_exists( 'aitrans' ) )
 	function aitrans( $singular, array $params = array(), $domain = 'client', $locale = null )
 	{
 		$i18n = app( 'aimeos.context' )->get()->i18n( $locale );
+		$format = $i18n->dt( $domain, $singular );
 
-		return vsprintf( $i18n->dt( $domain, $singular ), $params );
+		try {
+			return vsprintf( $format, $params );
+		} catch( \Throwable $e ) {
+			return $format;
+		}
 	}
 }
 
@@ -84,7 +96,66 @@ if( !function_exists( 'aitransplural' ) )
 	function aitransplural( $singular, $plural, $number, array $params = array(), $domain = 'client', $locale = null )
 	{
 		$i18n = app( 'aimeos.context' )->get()->i18n( $locale );
+		$format = $i18n->dn( $domain, $singular, $plural, $number );
 
-		return vsprintf( $i18n->dn( $domain, $singular, $plural, $number ), $params );
+		try {
+			return vsprintf( $format, $params );
+		} catch( \Throwable $e ) {
+			return $format;
+		}
+	}
+}
+
+
+if( !function_exists( 'aicurrency' ) )
+{
+	/**
+	 * Formats a monetary amount into internationalized currency display string.
+	 *
+	 * @param float|int|string $amount Numeric amount
+	 * @param string|null $currency ISO 4217 currency code (e.g. USD, EUR, GBP)
+	 * @param string|null $locale ISO locale string (e.g. en_US, de_DE)
+	 * @return string Formatted currency string
+	 */
+	function aicurrency( $amount, ?string $currency = null, ?string $locale = null ) : string
+	{
+		$currency = $currency ?: (string) ( config( 'shop.mshop.locale.currency' ) ?: 'USD' );
+		$num = (float) $amount;
+
+		$symbols = [
+			'USD' => '$', 'EUR' => '€', 'GBP' => '£', 'JPY' => '¥',
+			'CNY' => '¥', 'CAD' => 'CA$', 'AUD' => 'AU$', 'CHF' => 'CHF',
+		];
+
+		$decimals = in_array( strtoupper( $currency ), ['JPY', 'KRW'], true ) ? 0 : 2;
+		$formatted = number_format( $num, $decimals, '.', ',' );
+
+		if( isset( $symbols[$currency] ) ) {
+			return $symbols[$currency] . ' ' . $formatted;
+		}
+
+		return $formatted . ' ' . $currency;
+	}
+}
+
+
+if( !function_exists( 'aitax' ) )
+{
+	/**
+	 * Calculates cross-border tax breakdown for a monetary amount and country.
+	 *
+	 * @param float|int|string $amount Gross or Net amount
+	 * @param string|null $country Destination country code (ISO 3166-1 alpha-2)
+	 * @param bool $isB2B Whether customer is verified business
+	 * @param string|null $vatId Optional customer VAT identification number
+	 * @return array{net: float, tax: float, gross: float, rate: float, reverse_charge: bool, country: string}
+	 */
+	function aitax( $amount, ?string $country = null, bool $isB2B = false, ?string $vatId = null ) : array
+	{
+		$country = $country ?: (string) config( 'shop.crossborder.seller_country', 'DE' );
+		return \Aimeos\Shop\Base\Tax\CrossBorderTaxManager::calculate( (float) $amount, $country, [
+			'is_b2b' => $isB2B,
+			'vat_id' => $vatId,
+		] );
 	}
 }

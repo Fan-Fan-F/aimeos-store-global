@@ -10,6 +10,8 @@ namespace Aimeos\Shop\Base;
 
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Session;
+use Aimeos\Shop\Base\Tax\CrossBorderTaxManager;
 
 
 /**
@@ -63,6 +65,33 @@ class Locale
 			$site = Request::input( 'site', $site );
 			$lang = Request::input( 'locale', $lang );
 			$currency = Request::input( 'currency', $currency );
+
+			// Check session persistence for cross-border currency selection
+			if( empty( $currency ) && app()->bound( 'session' ) && Session::isStarted() && Session::has( 'aimeos.currency' ) )
+			{
+				$currency = (string) Session::get( 'aimeos.currency' );
+			}
+
+			// Fallback: Detect currency from geolocation HTTP headers (e.g. Cloudflare / AWS CloudFront)
+			if( empty( $currency ) )
+			{
+				$country = Request::header( 'CF-IPCountry' ) ?: Request::header( 'X-Country-Code' );
+				if( $country && ( $mapped = CrossBorderTaxManager::getDefaultCurrencyForCountry( $country ) ) ) {
+					$currency = $mapped;
+				}
+			}
+
+			// Fallback: Default configured shop currency
+			if( empty( $currency ) )
+			{
+				$currency = (string) $this->config->get( 'shop.mshop.locale.currency', '' );
+			}
+
+			// Persist currency choice in session for subsequent customer requests
+			if( !empty( $currency ) && app()->bound( 'session' ) && Session::isStarted() )
+			{
+				Session::put( 'aimeos.currency', $currency );
+			}
 
 			$localeManager = \Aimeos\MShop::create( $context, 'locale' );
 			$disableSites = $this->config->get( 'shop.disableSites', true );

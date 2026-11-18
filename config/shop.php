@@ -186,6 +186,34 @@ return [
 	'command' => [
 	],
 
+	'cache' => [
+		// Cache driver: 'laravel' (uses Laravel Cache/Redis), 'apcu', or 'database' (madmin_cache)
+		'driver' => env( 'SHOP_CACHE_DRIVER', 'database' ),
+		// Optional custom Laravel cache store (e.g. 'redis', 'memcached', 'array')
+		'store' => env( 'SHOP_CACHE_STORE', null ),
+		// Cache lifetime in seconds (default: 3600s / 1 hour)
+		'ttl' => 3600,
+		// Cache tagging enabled for fast category/product cache invalidation
+		'tags' => ['aimeos'],
+	],
+
+	'crossborder' => [
+		// Enable global cross-border tax and currency management
+		'enabled' => env( 'SHOP_CROSSBORDER_ENABLED', true ),
+		// Origin/merchant registration country (ISO 3166-1 alpha-2)
+		'seller_country' => env( 'SHOP_SELLER_COUNTRY', 'DE' ),
+		// Whether catalog prices include tax by default (true: gross prices, false: net prices)
+		'price_includes_tax' => env( 'SHOP_PRICE_INCLUDES_TAX', true ),
+		// Fallback standard tax rate percentage if destination country is unlisted
+		'default_tax_rate' => 19.0,
+		// Enable EU intra-community B2B VAT Reverse Charge zero-rating
+		'b2b_reverse_charge' => env( 'SHOP_B2B_REVERSE_CHARGE', true ),
+		// Allowed cross-border transaction currencies
+		'currencies' => ['EUR', 'USD', 'GBP', 'JPY', 'CNY', 'CAD', 'AUD', 'CHF'],
+		// Custom country tax rate percentage overrides (e.g. ['US' => 8.25])
+		'tax_rates' => [],
+	],
+
 	'frontend' => [
 	],
 

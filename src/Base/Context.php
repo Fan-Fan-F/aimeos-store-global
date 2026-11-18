@@ -116,7 +116,17 @@ class Context
 	 */
 	protected function addCache( \Aimeos\MShop\ContextIface $context ) : \Aimeos\MShop\ContextIface
 	{
-		$cache = \Aimeos\MAdmin::create( $context, 'cache' )->getCache();
+		$driver = config( 'shop.cache.driver', 'database' );
+
+		if( in_array( $driver, ['laravel', 'redis', 'memcached', 'array'], true ) )
+		{
+			$ttl = (int) config( 'shop.cache.ttl', 3600 );
+			$cache = new \Aimeos\Shop\Base\Cache\LaravelCacheAdapter( null, 'aimeos:', $ttl );
+		}
+		else
+		{
+			$cache = \Aimeos\MAdmin::create( $context, 'cache' )->getCache();
+		}
 
 		return $context->setCache( $cache );
 	}

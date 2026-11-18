@@ -64,7 +64,8 @@ class Support
 		$this->access[$user->id][$groups] = false;
 
 		$context = $this->context->get( false );
-		$siteid = current( array_reverse( explode( '.', trim( $user->siteid, '.' ) ) ) );
+		$userSiteId = (string) ( $user->siteid ?? '' );
+		$siteid = current( array_reverse( explode( '.', trim( $userSiteId, '.' ) ) ) );
 
 		if( $siteid ) {
 			$site = \Aimeos\MShop::create( $context, 'locale/site' )->get( $siteid )->getCode();
@@ -77,7 +78,7 @@ class Support
 
 		foreach( array_reverse( $context->locale()->getSitePath() ) as $siteid )
 		{
-			if( $user->siteid === '' || $user->siteid === $siteid ) {
+			if( $userSiteId === '' || $userSiteId === $siteid ) {
 				$this->access[$user->id][$groups] = $this->checkGroups( $context, $user->id, $groupcodes );
 			}
 		}

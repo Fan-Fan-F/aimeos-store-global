@@ -1,461 +1,168 @@
-<a href="https://aimeos.org/">
-    <img src="https://aimeos.org/images/logo.png" alt="Aimeos logo" title="Aimeos" align="right" height="60" />
-</a>
+# Aimeos Store Global
 
-# Aimeos Laravel ecommerce package
-[![Total Downloads](https://poser.pugx.org/aimeos/aimeos-laravel/d/total.svg)](https://packagist.org/packages/aimeos/aimeos-laravel)
-[![Build Status](https://circleci.com/gh/aimeos/aimeos-laravel.svg?style=shield)](https://circleci.com/gh/aimeos/aimeos-laravel)
-[![Coverage Status](https://coveralls.io/repos/aimeos/aimeos-laravel/badge.svg?branch=master&service=github)](https://coveralls.io/github/aimeos/aimeos-laravel?branch=master)
-[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/aimeos/aimeos-laravel/badges/quality-score.png?b=master)](https://scrutinizer-ci.com/g/aimeos/aimeos-laravel/?branch=master)
-[![License](https://poser.pugx.org/aimeos/aimeos/license.svg)](https://packagist.org/packages/aimeos/aimeos)
+> 面向跨境电商与全球多店铺场景的高性能 Laravel 电商包 / High-performance Laravel eCommerce package enhanced for cross-border multi-store and global trade.
 
-:star: Star us on GitHub — it motivates us a lot! 😀
+---
 
-[Aimeos](https://aimeos.org/Laravel) is THE professional, full-featured and
-ultra fast Laravel ecommerce package!  You can install it in your
-existing Laravel application within 5 minutes and can adapt, extend, overwrite
-and customize anything to your needs.
+## 简体中文
 
-[![Aimeos Laravel demo](https://aimeos.org/media/aimeos-github.png)](https://laravel.demo.aimeos.org/)
+### 简介
+`aimeos-store-global` 是基于官方 `aimeos/aimeos-laravel` 二次开发的高性能全球化电商包。原项目具备极高的并发吞吐量与灵活的多租户/多店铺能力，本项目在此基础上进一步强化了跨境贸易场景的税务与货币合规支持、分布式高并发缓存策略、以及核心路由与类型安全优化。
 
-## Features
+### 功能与改进点
+本项目在保留 Aimeos 原生多店铺、多语言、GraphQL/JSON:API 与 AI MCP 集成特性的同时，实现了以下实质性增强（对应 [CHANGES.md](CHANGES.md)）：
 
-Aimeos is a full-featured e-commerce package:
+1. **跨境多货币与动态税务合规引擎（Cross-Border Tax & Multi-Currency Engine）**
+   - **Session 币种持久化与智能回退**：重构 `Locale::get()`，解决原项目币种在跨页面跳转时频繁丢失的缺陷；支持从 Request、Session、CDN/云厂商地理标识头（`CF-IPCountry`、`X-Country-Code`）及配置项层级解析并自动回写 Session。
+   - **全球标准与欧盟 VAT OSS 规则库**：内置 `CrossBorderTaxManager`，提供欧盟 27 国 OSS 税率、英美加澳日新等主流贸易市场的税率计算与净价/含税价换算。
+   - **欧盟跨境 B2B 反向征税合规**：支持成员国企业 VAT ID 格式语法校验，自动执行跨国 B2B 零税率（0% Reverse Charge）合规免税。
+   - **全球化模板辅助函数**：提供 `aicurrency()` 与 `aitax()` 辅助函数，便于 Blade 模板快速格式化全球多币种与税务标签。
 
-* Multi vendor, multi channel and multi warehouse
-* From one to 1,000,000,000+ items
-* Extremly fast down to 20ms
-* For multi-tentant e-commerce SaaS solutions with unlimited vendors
-* Bundles, vouchers, virtual, configurable, custom and event products
-* Subscriptions with recurring payments
-* 100+ payment gateways
-* Full RTL support (frontend and backend)
-* Block/tier pricing out of the box
-* Extension for customer/group based prices
-* Discount and voucher support
-* Flexible basket rule system
-* Full-featured admin backend
-* Beautiful admin dashboard
-* Configurable product data sets
-* JSON REST API based on jsonapi.org
-* GraphQL API for administration
-* Completly modular structure
-* Extremely configurable and extensible
-* Extension for market places with millions of vendors
-* Fully SEO optimized including rich snippets
-* Translated to 30+ languages
-* AI-based text translation
-* Optimized for smart phones and tablets
-* Secure and reviewed implementation
-* High quality source code
+2. **多驱动分布式缓存与分层加速策略（High-Performance Cache Bridge）**
+   - **Laravel Cache 统一桥接**：实现 `LaravelCacheAdapter`，完整实现 Aimeos `\Aimeos\Base\Cache\Iface` 接口，无缝对接 Redis、Memcached、DynamoDB 或 Laravel 默认缓存存储。
+   - **解耦数据库表锁**：在 `Context::addCache()` 中支持配置化驱动切换（`shop.cache.driver`），在高并发大促场景下以高速内存/分布式缓存替代原有的 `madmin_cache` MySQL 表，规避行级锁与 I/O 争用。
+   - **全局标签失效索引**：针对不支持原生 Tag 的驱动维护高效的反向标签索引，确保 `deleteByTags()` 在所有存储介质中均能稳定执行。
 
-... and [more Aimeos features](https://aimeos.org/features)
+3. **修复 ResolveController CMS 路由丢失与异常处理穿透缺陷**
+   - **补齐 CMS 解析路由注册**：修复 `ResolveController` 构造函数漏注 `cms` 解析器的 Bug，确保全站基于 URL 路径的 CMS 页面可被正常解析与分发。
+   - **健壮的 404 容错降级**：重构 `indexAction()` 的异常捕获逻辑，避免非 404 错误码的“未找到”异常阻断后续解析器，实现平滑降级。
 
-Supported languages:
+4. **PHP 8.3 强类型兼容、辅助函数健壮性与配置名统一**
+   - **配置键命名修正**：修正 `airoute()` 中将 `shop.multishop` 误读为 `app.shop_multishop` 的缺陷，并补齐在 CLI/队列非 HTTP 场景下的默认参数回退。
+   - **消除 PHP 8.1+ 弃用警告**：修复 `Support::checkUserGroup()` 中对 `null` 调用 `trim()` 触发的 Deprecated 告警。
+   - **安全翻译与 Composer 2 原生版本获取**：在 `aitrans()` / `aitransplural()` 中增加对 `vsprintf` 参数不匹配的异常防御；`Aimeos::getVersion()` 优先调用 `\Composer\InstalledVersions` 原生 API。
 
+### 快速开始
 
-<p align="center" style="display: inline;">
-    <a href="https://www.transifex.com/aimeos/"><img src="https://flagicons.lipis.dev/flags/4x3/us.svg" title="English" width="24"></a>
-    <a href="https://www.transifex.com/aimeos/dashboard/all_projects/de/"><img src="https://flagicons.lipis.dev/flags/4x3/de.svg" title="German" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/fr/"><img src="https://flagicons.lipis.dev/flags/4x3/fr.svg" title="French" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/es/"><img src="https://flagicons.lipis.dev/flags/4x3/es.svg" title="Spanish" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/nl/"><img src="https://flagicons.lipis.dev/flags/4x3/nl.svg" title="Dutch" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/it/"><img src="https://flagicons.lipis.dev/flags/4x3/it.svg" title="Italian" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/pt/"><img src="https://flagicons.lipis.dev/flags/4x3/pt.svg" title="Portuguese" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/da/"><img src="https://flagicons.lipis.dev/flags/4x3/dk.svg" title="Danish" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/fi/"><img src="https://flagicons.lipis.dev/flags/4x3/fi.svg" title="Finnish" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/sv/"><img src="https://flagicons.lipis.dev/flags/4x3/sv.svg" title="Swedish" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/no/"><img src="https://flagicons.lipis.dev/flags/4x3/no.svg" title="Norwegian" width="24"></a>
-    &nbsp;&nbsp;&nbsp;
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/pl/"><img src="https://flagicons.lipis.dev/flags/4x3/pl.svg" title="Polish" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/hu/"><img src="https://flagicons.lipis.dev/flags/4x3/hu.svg" title="Hungarian" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/ru/"><img src="https://flagicons.lipis.dev/flags/4x3/ru.svg" title="Russian" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/uk/"><img src="https://flagicons.lipis.dev/flags/4x3/ua.svg" title="Ukrainian" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/hr/"><img src="https://flagicons.lipis.dev/flags/4x3/hr.svg" title="Croatian" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/sl/"><img src="https://flagicons.lipis.dev/flags/4x3/si.svg" title="Slovenian" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/ro/"><img src="https://flagicons.lipis.dev/flags/4x3/ro.svg" title="Romanian" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/cs/"><img src="https://flagicons.lipis.dev/flags/4x3/cz.svg" title="Czech" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/sr/"><img src="https://flagicons.lipis.dev/flags/4x3/sr.svg" title="Serbian" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/sk/"><img src="https://flagicons.lipis.dev/flags/4x3/sk.svg" title="Slovak" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/et/"><img src="https://flagicons.lipis.dev/flags/4x3/et.svg" title="Estonian" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/lv/"><img src="https://flagicons.lipis.dev/flags/4x3/lv.svg" title="Latvian" width="24"></a>
-    &nbsp;&nbsp;&nbsp;
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/tr/"><img src="https://flagicons.lipis.dev/flags/4x3/tr.svg" title="Turkish" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/ar/"><img src="https://flagicons.lipis.dev/flags/4x3/sa.svg" title="Arabic" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/fa/"><img src="https://flagicons.lipis.dev/flags/4x3/ir.svg" title="Persian" width="24"></a>
-    &nbsp;&nbsp;&nbsp;
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/zh/"><img src="https://flagicons.lipis.dev/flags/4x3/cn.svg" title="Chinese" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/ja/"><img src="https://flagicons.lipis.dev/flags/4x3/jp.svg" title="Japanese" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/id/"><img src="https://flagicons.lipis.dev/flags/4x3/id.svg" title="Indonesian" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/vi/"><img src="https://flagicons.lipis.dev/flags/4x3/vi.svg" title="Vietnamese" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/my/"><img src="https://flagicons.lipis.dev/flags/4x3/my.svg" title="Burmese" width="24"></a>
-     <a href="https://www.transifex.com/aimeos/dashboard/all_projects/ko/"><img src="https://flagicons.lipis.dev/flags/4x3/kr.svg" title="Korean" width="24"></a>
-</p>
+#### 1. 环境要求
+- PHP >= 8.1（推荐 PHP 8.2 或 8.3）
+- 扩展：`bcmath`, `curl`, `gd`, `intl`, `mbstring`, `pdo_mysql` (或 `pdo_pgsql`), `xml`, `zip`
+- Laravel 10.x, 11.x, 12.x 或 13.x
+- Composer 2.x
 
-
-Check out the demos:
-
-* [Aimeos frontend demo](https://laravel.demo.aimeos.org)
-* [Aimeos admin demo](https://admin.demo.aimeos.org)
-
-## Alternatives
-
-### Full shop application
-
-If you want to set up a new application or test Aimeos, we recommend the Aimeos
-shop distribution. It contains everything for a quick start and you will get a
-fully working online shop in less than 5 minutes:
-
-:star: [Aimeos shop distribution](https://github.com/aimeos/aimeos)
-
-### Headless distribution
-
-If you want to build a single page application (SPA) respectively a progressive web
-application (PWA) yourself and don't need the Aimeos HTML frontend, then the Aimeos
-headless distribution is the right choice:
-
-:star:  [Aimeos headless distribution](https://github.com/aimeos/aimeos-headless)
-
-## Table of content
-
-- [Supported versions](#supported-versions)
-- [Requirements](#requirements)
-- [Database](#database)
-- [Installation](#installation)
-- [Authentication](#authentication)
-- [MCP bridge](#mcp-bridge)
-- [Setup](#setup)
-- [Test](#test)
-- [Hints](#hints)
-- [License](#license)
-- [Links](#links)
-
-## Supported versions
-
-Currently, the Aimeos Laravel packages **2025.10 and later** are fully supported:
-
-- LTS release: 2026.10+ (Laravel 11.x, 12.x and 13.x)
-- old LTS release: 2025.10+ (Laravel 10.x, 11.x and 12.x)
-
-If you want to upgrade between major versions, please have a look into the
-[upgrade guide](https://aimeos.org/docs/latest/laravel/setup/#upgrade)!
-
-## Requirements
-
-The Aimeos shop distribution requires:
-- Linux/Unix, WAMP/XAMP or MacOS environment
-- PHP >= 8.1
-- MySQL >= 5.7.8, MariaDB >= 10.2.2, PostgreSQL 9.6+, SQL Server 2019+
-- Web server (Apache, Nginx or integrated PHP web server for testing)
-
-If required PHP extensions are missing, `composer` will tell you about the missing
-dependencies.
-
-If you want to upgrade between major versions, please have a look into the
-[upgrade guide](https://aimeos.org/docs/latest/laravel/setup/#upgrade)!
-
-## Database
-
-Make sure that you've **created the database** in advance and added the configuration
-to the `.env` file in your application directory. Sometimes, using the .env file makes
-problems and you will get exceptions that the connection to the database failed. In that
-case, add the database credentials to the **resource/db section of your ./config/shop.php**
-file too!
-
-If you don't have at least MySQL 5.7.8 or MariaDB 10.2.2 installed, you will probably get an error like
-
-```
-Specified key was too long; max key length is 767 bytes
-```
-
-To circumvent this problem, drop the new tables if there have been any created and
-change the charset/collation setting in `./config/database.php` to these values before
-installing Aimeos again:
-
-```php
-'connections' => [
-    'mysql' => [
-        // ...
-        'charset' => 'utf8',
-        'collation' => 'utf8_unicode_ci',
-        // ...
-    ]
-]
-```
-
-**Caution:** Also make sure that your MySQL server creates *InnoDB* tables by default as *MyISAM*
-tables won't work and will result in an foreign key constraint error!
-
-If you want to use a database server other than MySQL, please have a look into the article about
-[supported database servers](https://aimeos.org/docs/latest/infrastructure/databases/)
-and their specific configuration. Supported are:
-
-* MySQL, MariaDB (fully)
-* PostgreSQL (fully)
-* SQL Server (fully)
-
-Make sure, you use one of the supported database servers in your `.env` file, e.g.:
-
-```
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=aimeos
-DB_USERNAME=root
-DB_PASSWORD=
-```
-
-**Caution:** The SQLite database configured by default is **NOT supported!**
-
-## Installation
-
-The Aimeos Laravel online shop package is a composer based library. It can be
-installed easiest by using [Composer 2.1+](https://getcomposer.org) in the root
-directory of your existing Laravel application:
-
-```
-wget https://getcomposer.org/download/latest-stable/composer.phar -O composer
-```
-
-Then, add these lines to the composer.json of the **Laravel skeleton application**:
-
-```json
-    "prefer-stable": true,
-    "minimum-stability": "dev",
-    "require": {
-        "aimeos/aimeos-laravel": "~2026.10",
-        ...
-    },
-    "scripts": {
-        "post-update-cmd": [
-            "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
-            "@php artisan vendor:publish --tag=public --ansi",
-            "\\Aimeos\\Shop\\Composer::join"
-        ],
-        ...
-    }
-```
-
-Afterward, install the Aimeos shop package using
-
-`php composer update -W`
-
-In the last step, you must now execute these artisan commands to get a working
-or updated Aimeos installation:
-
+#### 2. 安装与配置发布
+在 Laravel 项目根目录下引入包并发布配置文件：
 ```bash
-php artisan vendor:publish --tag=config --tag=public
-php artisan migrate
-php artisan aimeos:setup --option=setup/default/demo:1
+composer require aimeos/aimeos-laravel
+php artisan vendor:publish --tag=config
 ```
 
-In a production environment or if you don't want that the demo data gets
-installed, leave out the `--option=setup/default/demo:1` option.
-
-## Authentication
-
-You have to set up one of Laravel's authentication starter kits. Laravel Breeze
-is the easiest one but you can also use Jetstream.
-
-```bash
-composer require laravel/breeze
-php artisan breeze:install
-npm install && npm run build # if not executed automatically by the previous command
-```
-
-Laravel Breeze will ask you a few questions, the most important one is the type of stack you
-want to use. Select "Blade" (it's the easiest way) and use the default values for the others.
-
-It also adds a route for `/profile` to `./routes/web.php` which may overwrite the
-`aimeos_shop_account` route. To avoid an exception about a missing `aimeos_shop_account`
-route, change the URL for these lines from `./routes/web.php` file from `/profile` to
-`/profile/me`:
-
+#### 3. 跨境与缓存配置
+编辑发布的 `config/shop.php` 配置文件：
 ```php
-Route::middleware('auth')->group(function () {
-    Route::get('/profile/me', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile/me', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile/me', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
-```
-
-For more information, please follow the Laravel documentation:
-* [Laravel 13.x](https://laravel.com/docs/13.x/authentication)
-* [Laravel 12.x](https://laravel.com/docs/12.x/authentication)
-* [Laravel 11.x](https://laravel.com/docs/11.x/authentication)
-* [Laravel 10.x](https://laravel.com/docs/10.x/authentication)
-
-### Configure authentication
-
-As a last step, you need to extend the `boot()` method of your
-`App\Providers\AppServiceProvider` class and add the lines to define how
-authorization for "admin" is checked in `app/Providers/AppServiceProvider.php`:
-
-```php
-    public function boot()
-    {
-        // Keep the lines before
-
-        \Illuminate\Support\Facades\Gate::define('admin', function($user, $class, $roles) {
-            if( isset( $user->superuser ) && $user->superuser ) {
-                return true;
-            }
-            return app( '\Aimeos\Shop\Base\Support' )->checkUserGroup( $user, $roles );
-        });
-    }
-```
-
-### Create account
-
-Test if your authentication setup works before you continue. Create an admin account
-for your Laravel application so you will be able to log into the Aimeos admin interface:
-
-```bash
-php artisan aimeos:account --super <email>
-```
-
-The e-mail address is the user name for login and the account will work for the
-frontend too. To protect the new account, the command will ask you for a password.
-The same command can create limited accounts by using `--admin`, `--editor` or `--api`
-instead of `--super` (access to everything).
-
-## MCP bridge
-
-Aimeos can expose its administration tools through the official Laravel MCP server.
-The transport is optional so applications that don't use MCP, as well as Laravel 10
-applications, keep working without the SDK. On a supported Laravel version, install it
-in the application with:
-
-```bash
-composer require laravel/mcp:^0.9
-```
-
-Enable the endpoint in `config/shop.php` and protect it with the token guard used by
-your application. This example uses Laravel Sanctum:
-
-```php
-'guards' => [
-    'mcp' => 'sanctum',
-],
-'routes' => [
-    'mcp' => [
-        'prefix' => 'admin/{site}/mcp',
-        'middleware' => ['api', 'auth:sanctum'],
+return [
+    // 启用高性能 Redis / Laravel 缓存驱动（替代默认数据库缓存表）
+    'cache' => [
+        'driver' => env('SHOP_CACHE_DRIVER', 'laravel'),
+        'store' => env('SHOP_CACHE_STORE', 'redis'),
+        'ttl' => 3600,
     ],
+
+    // 跨境税务与多货币配置
+    'crossborder' => [
+        'enabled' => true,
+        'seller_country' => 'DE', // 商家注册国代码
+        'price_includes_tax' => true, // 目录售价是否含税
+        'b2b_reverse_charge' => true, // 启用欧盟跨国 B2B 免税反向征税
+        'currencies' => ['EUR', 'USD', 'GBP', 'JPY', 'CNY', 'AUD'],
+    ],
+];
+```
+
+#### 4. 数据库初始化
+运行 Aimeos 安装与数据迁移：
+```bash
+php artisan aimeos:setup
+```
+
+#### 5. 常用测试与管理命令
+```bash
+# 执行单元测试
+./vendor/bin/phpunit --no-coverage
+
+# 清除缓存
+php artisan aimeos:clear
+```
+
+### 来源与致谢
+本项目基于 [aimeos-laravel](https://github.com/aimeos/aimeos-laravel) 二次开发，原项目由 aimeos 以 MIT 许可证开源。
+
+### 许可证
+沿用原许可证，全文见根目录 LICENSE。
+
+---
+
+## English
+
+### Overview
+`aimeos-store-global` is a secondary development based on the official `aimeos/aimeos-laravel` package. While maintaining ultra-fast execution, headless GraphQL/JSON:API support, and multi-tenant capabilities, this project significantly enhances cross-border taxation compliance (EU VAT OSS, B2B Reverse Charge), persistent multi-currency detection, high-performance distributed caching (Redis/Laravel unified cache), and route resolver stability.
+
+### Key Features & Improvements
+Corresponding to [CHANGES.md](CHANGES.md):
+
+1. **Cross-Border Tax & Multi-Currency Engine**
+   - **Persistent Currency Resolution**: Solves the ephemeral currency issue in `Locale::get()` by adding session persistence, GeoIP / Cloudflare header detection (`CF-IPCountry`, `X-Country-Code`), and fallback chains.
+   - **Global & EU VAT OSS Rules**: Built-in `CrossBorderTaxManager` covering EU 27 member states, UK VAT, US sales tax, Australian/NZ GST, Japanese JCT, and net/gross calculations.
+   - **Intra-Community B2B Reverse Charge**: Automated syntax validation for EU VAT identification numbers and zero-rate reverse charge compliance.
+   - **Global Blade Helpers**: Adds `aicurrency()` and `aitax()` for easy multi-currency formatting and tax calculation in templates.
+
+2. **High-Performance Multi-Driver Cache Bridge**
+   - **Laravel Cache Integration**: Implements `LaravelCacheAdapter` fulfilling `\Aimeos\Base\Cache\Iface`, allowing seamless use of Redis, Memcached, DynamoDB, or Octane.
+   - **Decoupling Database Locks**: In `Context::addCache()`, bypasses the default database table `madmin_cache` to eliminate row locks and I/O contention during traffic spikes.
+   - **Tag-based Invalidation Index**: Employs reverse tag indexing for stores lacking native tagging support.
+
+3. **ResolveController Bug Fixes & Resilient Fallbacks**
+   - **CMS Route Dispatching**: Fixes the omission of `cms` resolver in `ResolveController::__construct()`, enabling proper path-based CMS page resolution.
+   - **Graceful 404 Fallback**: Hardens `indexAction()` exception handling to allow chained resolvers to continue when non-404 not-found exceptions occur.
+
+4. **PHP 8.3 Compatibility & Type Safety**
+   - **Multi-shop Config Key Fix**: Rectifies `shop.multishop` configuration retrieval in `airoute()`, and adds fallback values when running in CLI/queue contexts.
+   - **Eliminates PHP 8.1+ Deprecation Warnings**: Safely casts `$user->siteid` before trimming in `Support::checkUserGroup()`.
+   - **Safe Formatting & Composer 2 API**: Wraps `vsprintf` calls in `aitrans()` and `aitransplural()` to prevent argument count crashes, and adopts `\Composer\InstalledVersions` in `Aimeos::getVersion()`.
+
+### Quick Start
+
+#### Requirements
+- PHP >= 8.1 (PHP 8.2 or 8.3 recommended)
+- Extensions: `bcmath`, `curl`, `gd`, `intl`, `mbstring`, `pdo_mysql` (or `pdo_pgsql`), `xml`, `zip`
+- Laravel 10.x, 11.x, 12.x, or 13.x
+- Composer 2.x
+
+#### Installation
+```bash
+composer require aimeos/aimeos-laravel
+php artisan vendor:publish --tag=config
+```
+
+#### Configuration
+Update `config/shop.php` to customize cross-border and caching options:
+```php
+'cache' => [
+    'driver' => env('SHOP_CACHE_DRIVER', 'laravel'),
+    'store' => env('SHOP_CACHE_STORE', 'redis'),
+    'ttl' => 3600,
+],
+'crossborder' => [
+    'enabled' => true,
+    'seller_country' => 'DE',
+    'price_includes_tax' => true,
+    'b2b_reverse_charge' => true,
+    'currencies' => ['EUR', 'USD', 'GBP', 'JPY', 'CNY', 'AUD'],
 ],
 ```
 
-The MCP endpoint is then available at `/admin/<site>/mcp`. It is disabled until this
-route configuration and `laravel/mcp` are both present. Never enable it without
-authentication: the server exposes administrative read and write operations.
-
-The bridge applies the normal Laravel `admin` gate before starting the server. Each
-tool also validates its input and checks the Aimeos permissions configured below
-`admin/mcp/resource`. Superusers have access to all tools; assign explicit resource
-permissions for limited admin, editor or API accounts.
-
-## Setup
-
-To reference images correctly, you have to adapt your `.env` file and set the `APP_URL`
-to your real URL, e.g.
-
-```
-APP_URL=http://127.0.0.1:8000
+#### Database Setup
+```bash
+php artisan aimeos:setup
 ```
 
-**Caution:** Make sure, Laravel uses the `file` session driver in your `.env` file!
-Otherwise, the shopping basket content won't get stored correctly!
-
-```
-SESSION_DRIVER=file
+#### Testing
+```bash
+./vendor/bin/phpunit --no-coverage
 ```
 
-If your `./public` directory isn't writable by your web server, you have to create these
-directories:
+### Sources & Acknowledgements
+This project is a secondary development based on [aimeos-laravel](https://github.com/aimeos/aimeos-laravel), originally developed by [aimeos](https://github.com/aimeos) and open-sourced under the MIT License.
 
-```
-mkdir public/aimeos public/vendor
-chmod 777 public/aimeos public/vendor
-```
-
-In a production environment, you should be more specific about the granted permissions!
-
-## Test
-
-Then, you should be able to call the catalog list page in your browser. For a
-quick start, you can use the integrated web server. Simply execute this command
-in the base directory of your application:
-
-```
-php artisan serve
-```
-
-### Frontend
-
-Point your browser to the list page of the shop using:
-
-http://127.0.0.1:8000/shop/search
-
-**Note:** Integrating the Aimeos package adds some routes like `/shop` or `/admin` to your
-Laravel installation but the **home page stays untouched!** If you want to add Aimeos to
-the home page as well, replace the route for "/" in `./routes/web.php` by this line:
-
-```php
-Route::group(['middleware' => ['web']], function () {
-    Route::get('/', '\Aimeos\Shop\Controller\CatalogController@homeAction')->name('aimeos_home');
-});
-```
-
-For multi-vendor setups, read the article about [multiple shops](https://aimeos.org/docs/latest/laravel/customize/#multiple-shops).
-
-This will display the Aimeos catalog home component on the home page you you get a
-nice looking shop home page which will look like this:
-
-[![Aimeos frontend](https://aimeos.org/media/aimeos-frontend.jpg)](http://127.0.0.1:8000/)
-
-### Backend
-
-If you've still started the internal PHP web server (`php artisan serve`)
-you should now open this URL in your browser:
-
-http://127.0.0.1:8000/admin
-
-Enter the e-mail address and the password of the newly created user and press "Login".
-If you don't get redirected to the admin interface (that depends on the authentication
-code you've created according to the Laravel documentation), point your browser to the
-`/admin` URL again.
-
-**Caution:** Make sure that you aren't already logged in as a non-admin user! In this
-case, login won't work because Laravel requires you to log out first.
-
-[![Aimeos backend](https://aimeos.org/media/aimeos-backend.png)](http://127.0.0.1:8000/admin)
-
-## Hints
-
-To simplify development, you should configure to use no content cache. You can
-do this in the `config/shop.php` file of your Laravel application by adding
-these lines at the bottom:
-
-```php
-    'madmin' => [
-        'cache' => [
-            'manager' => [
-                'name' => 'None',
-            ],
-        ],
-    ],
-```
-
-## License
-
-The Aimeos Laravel package is licensed under the terms of the MIT license and
-is available for free.
-
-## Links
-
-* [Web site](https://aimeos.org/Laravel)
-* [Documentation](https://aimeos.org/docs/Laravel)
-* [Forum](https://aimeos.org/help/laravel-package-f18/)
-* [Issue tracker](https://github.com/aimeos/aimeos-laravel/issues)
-* [Composer packages](https://packagist.org/packages/aimeos/aimeos-laravel)
-* [Source code](https://github.com/aimeos/aimeos-laravel)
+### License
+Licensed under the original MIT License. See LICENSE for details.

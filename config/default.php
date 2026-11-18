@@ -290,4 +290,21 @@ return [
 			],
 		],
 	],
+
+	'cache' => [
+		'driver' => 'database',
+		'store' => null,
+		'ttl' => 3600,
+		'tags' => ['aimeos'],
+	],
+
+	'crossborder' => [
+		'enabled' => true,
+		'seller_country' => 'DE',
+		'price_includes_tax' => true,
+		'default_tax_rate' => 19.0,
+		'b2b_reverse_charge' => true,
+		'currencies' => ['EUR', 'USD', 'GBP', 'JPY', 'CNY', 'CAD', 'AUD', 'CHF'],
+		'tax_rates' => [],
+	],
 ];
